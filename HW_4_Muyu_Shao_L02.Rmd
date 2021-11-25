@@ -1,0 +1,199 @@
+---
+title: "HW4"
+output: html_document
+---
+```{r load-packages, include=FALSE}
+library(dplyr)
+library(magrittr)
+library(knitr)
+library(ggplot2)
+library(mdsr)
+library(resampledata)
+library(tidyr)
+library(gtools)
+library(dplyr)
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+require(mosaic)
+require(mosaicData)
+require(Defualt)
+require(tidyquant)
+```
+
+#Building Predictive Models
+```{r}
+setwd("C:/Users/Melantha Shao/Desktop/UC/2021-2022/Fall 2021/BTMA 431/HW4")
+load("btma.431.736.f2018.v2.rda")
+Q1.df = data.frame(btma.431.736.f2018)
+```
+#1a
+#Final Project Coefficient Estimate = 0.40
+```{r}
+fitQ1a <- lm(final.raw.score.excluding.bonus ~ ., data = Q1.df)
+summary(fitQ1a)
+```
+
+#1b
+```{r}
+Q1b.df = data.frame(Q1.df$final.project, Q1.df$post.retake.midterm, (Q1.df$textbook.quiz.average)*(100/15),(Q1.df$HW.average)*(100/20), Q1.df$BANA, Q1.df$final.raw.score.excluding.bonus)
+colnames(Q1b.df) <- c("final.project", "post.retake.midterm", "textbook.quiz.average", "HW.average", "BANA", "final.raw.score.excluding.bonus")
+head(Q1b.df,5)
+```
+#Compared to the previous regression model, the followings changed
+# [HW.average coefficient estimate]
+# [HW.average standard error]
+# [textbook.quiz.average coefficient estimate]
+# [textbook.quiz.average standard error]
+```{r}
+fitQ1b <- lm(final.raw.score.excluding.bonus ~ ., data = Q1b.df)
+summary(fitQ1b)
+```
+#1c
+# The P-value = [0.36]
+
+#1d
+# The p-value to address whether post.retake.midterm score impacts the final score is different between BANA students and non-BANA students is [0.86]
+```{r}
+fitQ1d <- lm(final.raw.score.excluding.bonus ~ final.project + textbook.quiz.average + HW.average + post.retake.midterm + BANA + post.retake.midterm * BANA, data = Q1b.df)
+summary(fitQ1d)
+```
+#1e
+# The coefficient for log(final.project) = [0.38]
+```{r}
+fitQ1e <- lm(log(final.raw.score.excluding.bonus) ~ log(final.project) + log(textbook.quiz.average) + log(HW.average) + log(post.retake.midterm), data = Q1b.df)
+summary(fitQ1e)
+```
+#Building Prescriptive Models
+#2a
+#Q(p) = 50 − 5p
+# Optimal Price = [5.50], Optimal Profit = [101.25]
+```{r}
+P = seq(1, 9, by = 0.01)
+D = 50 - 5*P
+S = D *(P-1)
+max(S)
+P[which.max(S)]
+```
+# 2b
+# Q(p) = 45 − 5p
+# Optimal Price = [5.00], Optimal Profit = [80.00]
+```{r}
+P2 = seq(1, 9, by = 0.01)
+D2 = 45 - 5*P2
+S2 = D2 *(P2-1)
+max(S2)
+P2[which.max(S2)]
+```
+# Q(p) = 50 − 5p
+# Optimal Price = [6.00], Optimal Profit = [125.00]
+```{r}
+P3 = seq(1, 9, by = 0.01)
+D3 = 55 - 5*P3
+S3 = D3 *(P3-1)
+max(S3)
+P3[which.max(S3)]
+```
+# 2c
+# The shape of the curve is upward sloping
+```{r}
+M = seq(40, 60, by = 1)
+OP = c()
+for (i in 1:length(M)){
+  P4 = seq(1, 15, by = 0.01)
+  S4 = (M[i] - 5*P4) * (P4-1)
+  OP[i] = P4[which.max(S4)]
+}
+Q2c.df = data.frame(M,OP)
+ggplot()+ geom_line(data=Q2c.df,aes(y = OP,x = M),size=1)
+```
+
+# 2d
+# The plot shows a downward sloping line
+```{r}
+M1 = 45
+M2 = 55
+k = seq(2, 8, by = 0.01)
+OP45 = c()
+OP55 = c()
+for (i in 1:length(k)){
+  P5 =  seq(1, 15, by = 0.01)
+  S45 = (M1 - k[i]*P5) * (P5-1)
+  S55 = (M2 - k[i]*P5) * (P5-1)
+  OP45[i] = P5[which.max(S45)]
+  OP55[i] = P5[which.max(S55)] 
+}
+Q2d.df = data.frame(k,OP45,OP55)
+ggplot()+
+  geom_line(data=Q2d.df,aes(y=OP45,x= k,colour="M = 45"),size=1 )+
+  geom_line(data=Q2d.df,aes(y=OP55,x= k,colour="M = 55"),size=1) +
+  scale_color_manual(name = "Y series", values = c("M = 45" = "red", "M = 55" = "blue")) +
+  ylab("Optimal Price")
+```
+# When M = 45 and Optimal Price = 5, k = [5.00]
+# When k = 5.00, M = 45, Optimal Price = [6.00]
+```{r}
+kval = filter(Q2d.df,OP45==5)
+kval$k
+
+OPval = filter(Q2d.df, k == kval$k)
+OPval$OP55
+```
+
+#2e
+# The optimal price = [3.90]
+
+
+```{r}
+Decision_Support_Tool <- function(dataset){
+  df = data.frame(dataset)
+  dataset$profit <- (df$price-1)*(df$quantity)
+  Q2e.fit <- lm(profit ~ price + I(price^2), data=dataset)
+  
+  Price = seq(0, 15, by=0.01)
+  Profit = c()
+  intcpt <- summary(Q2e.fit)$coefficients[1,1] #Intercept
+  pri <- summary(Q2e.fit)$coefficients[2,1]    #Coefficient for price
+  pri_squ <- summary(Q2e.fit)$coefficients[3,1]#Coefficient for price^2
+  
+  for (i in 1:length(Price)){
+    Profit[i] = intcpt + (pri * Price[i]) + (pri_squ *(Price[i]^2))#prediction of profit using intercept and coefficient extracted earlier
+  }
+  Profit
+  predict.df = data.frame(Price,Profit)
+  
+  return (Price[which.max(Profit)])
+}
+```
+
+# To use the function, load dataset first, and set dataset = file name
+```{r}
+load("salesData.rda")
+Decision_Support_Tool(dataset = salesData)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
